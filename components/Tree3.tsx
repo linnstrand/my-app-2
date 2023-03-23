@@ -93,7 +93,7 @@ export const Tree3 = () => {
         );
 
       // update the nodes...
-      const node = gNode.selectAll('g.node').data(nodes, (d) => d.id);
+      const node = gNode.selectAll('g').data(nodes, (d) => d.id);
 
       // Enter new nodes
       const nodeEnter = node
@@ -101,11 +101,7 @@ export const Tree3 = () => {
         .append('g')
         .attr('transform', (d) => `translate(${source.y0},${source.x0})`)
         .attr('fill-opacity', 0)
-        .attr('stroke-opacity', 0)
-        .on('click', (event, d) => {
-          d.children = d.children ? null : d._children;
-          update(d);
-        });
+        .attr('stroke-opacity', 0);
 
       nodeEnter
         .append('rect')
@@ -113,27 +109,22 @@ export const Tree3 = () => {
         .attr('x', 0)
         .attr('y', 0)
         .attr('width', 0)
-        .attr('height', 0);
-      // nodeEnter
-      //   .append('rect')
-      //   .attr('fill-opacity', 0.5)
-      //   .attr('stroke-opacity', 1)
-      //   .attr('fill', 'blue')
-      //   .attr('x', -(memberBox.width / 2))
-      //   .attr('y', -(memberBox.height / 2))
-      //   .attr('width', memberBox.width)
-      //   .attr('height', memberBox.height)
-      //   .on('click', (e, d) => {
-      //     d._children ? (d._children = [...d.children]) : (d._children = null);
-      //     update(d);
-      //   });
-
-      const yOffset = 10;
+        .attr('height', 0)
+        .on('click', (event, d) => {
+          if (d.children) {
+            d._children = [...d.children];
+            d.children = null;
+          } else if (d._children) {
+            d.children = [...d._children];
+            d._children = null;
+          }
+          update(d);
+        });
 
       nodeEnter
         .append('text')
         .attr('dx', -(memberBox.width / 2) + 10)
-        .attr('dy', -memberBox.height / 2 + 25 + yOffset)
+        .attr('dy', -memberBox.height / 2 + 25 + 10)
         .attr('text-anchor', 'left')
         .attr('class', 'name')
         .attr('level', (d) => d.data.level)
@@ -162,34 +153,43 @@ export const Tree3 = () => {
         .exit()
         .transition(transition)
         .remove()
-        .attr('transform', (d) => `translate(${1 * source.y},${source.x})`)
+        .attr('transform', (d) => `translate(${source.y},${source.x})`)
         .attr('fill-opacity', 0)
         .attr('stroke-opacity', 0);
 
       const link = gLink.selectAll('path').data(links, (d) => d.target.id);
 
       // Enter any new links at the parent's previous position.
+      const curve = d3
+        .link<unknown, d3.HierarchyPointNode<any>>(d3.curveStep)
+        .x((d) => d.y)
+        .y((d) => d.x);
+
       const linkEnter = link
         .enter()
         .append('path')
-        .attr(
-          'd',
-          d3
-            .link<unknown, d3.HierarchyPointNode<any>>(d3.curveStep)
-            .x((d) => d.y)
-            .y((d) => d.x)
-        );
+        .attr('d', (d) => {
+          const o = { x: source.x0, y: source.y0 };
+          return curve({ source: o, target: o });
+        });
 
+      // Transition links to their new position.
       link
         .merge(linkEnter)
         .transition(transition)
-        .attr(
-          'd',
-          d3
-            .link<unknown, d3.HierarchyPointNode<any>>(d3.curveStep)
-            .x((d) => d.y)
-            .y((d) => d.x)
-        );
+        .attr('d', (d) => {
+          return curve(d, 1);
+        });
+
+      // Transition exiting nodes to the parent's new position.
+      link
+        .exit()
+        .transition(transition)
+        .remove()
+        .attr('d', (d) => {
+          const o = { x: source.x, y: source.y };
+          return curve({ source: o, target: o });
+        });
 
       // Stash the old positions for transition.
       root.eachBefore((d) => {
