@@ -29,11 +29,11 @@ export const Tree3 = () => {
       .separation(() => 0.5);
     const root = d3.hierarchy(testdata, (person) => person.nodes);
 
-    console.log(root);
     root.x0 = dy / 20;
     root.y0 = 0;
 
     root.descendants().forEach((node, i) => {
+      node.id = i;
       node._children = node.children;
       if (node.depth && node.data.level > 3) {
         node.children = null;
@@ -64,8 +64,6 @@ export const Tree3 = () => {
       .attr('pointer-events', 'all');
 
     const update = (source) => {
-      console.log('update with source: ', source);
-
       const nodes = root.descendants().reverse();
       const links = root.links();
 
@@ -78,26 +76,80 @@ export const Tree3 = () => {
         if (d.x < x0) x0 = d.x;
       });
 
-      let height = x1 - x0 + margin.top + margin.bottom;
-      height = Math.max(height, 320);
+      const height = Math.max(x1 - x0 + margin.top + margin.bottom, 320);
 
-      svg.attr('viewBox', () => [
-        -margin.left - memberBox.width / 2,
-        x0 - margin.top - memberBox.height / 2,
-        width,
-        height + memberBox.height,
-      ]);
+      const transition = svg
+        .transition()
+        .duration(200)
+        .attr('viewBox', [
+          -margin.left - memberBox.width / 2,
+          x0 - margin.top - memberBox.height / 2,
+          width,
+          height + memberBox.height,
+        ])
+        .tween(
+          'resize',
+          window.ResizeObserver ? null : () => () => svg.dispatch('toggle')
+        );
 
       // update the nodes...
-      const node = gNode
-        .selectAll('g')
-        .data(nodes)
-        .join('g')
+      const node = gNode.selectAll('g.node').data(nodes, (d) => d.id);
+
+      // Enter new nodes
+      const nodeEnter = node
+        .enter()
+        .append('g')
+        .attr('transform', (d) => `translate(${source.y0},${source.x0})`)
+        .attr('fill-opacity', 0)
+        .attr('stroke-opacity', 0)
+        .on('click', (event, d) => {
+          d.children = d.children ? null : d._children;
+          update(d);
+        });
+
+      nodeEnter
+        .append('rect')
+        .attr('class', 'frame')
+        .attr('x', 0)
+        .attr('y', 0)
+        .attr('width', 0)
+        .attr('height', 0);
+      // nodeEnter
+      //   .append('rect')
+      //   .attr('fill-opacity', 0.5)
+      //   .attr('stroke-opacity', 1)
+      //   .attr('fill', 'blue')
+      //   .attr('x', -(memberBox.width / 2))
+      //   .attr('y', -(memberBox.height / 2))
+      //   .attr('width', memberBox.width)
+      //   .attr('height', memberBox.height)
+      //   .on('click', (e, d) => {
+      //     d._children ? (d._children = [...d.children]) : (d._children = null);
+      //     update(d);
+      //   });
+
+      const yOffset = 10;
+
+      nodeEnter
+        .append('text')
+        .attr('dx', -(memberBox.width / 2) + 10)
+        .attr('dy', -memberBox.height / 2 + 25 + yOffset)
+        .attr('text-anchor', 'left')
+        .attr('class', 'name')
+        .attr('level', (d) => d.data.level)
+        .text((d) => d.data?.name)
+        .style('fill-opacity', 1);
+
+      // Transition nodes to their new position.
+      const nodeUpdate = node
+        .merge(nodeEnter)
+        .transition(transition)
+        .attr('transform', (d) => `translate(${d.y},${d.x})`)
         .attr('fill-opacity', 1)
         .attr('stroke-opacity', 1);
 
-      node
-        .append('rect')
+      nodeUpdate
+        .select('rect.frame')
         .attr('fill-opacity', 0.5)
         .attr('stroke-opacity', 1)
         .attr('fill', 'blue')
@@ -106,15 +158,31 @@ export const Tree3 = () => {
         .attr('width', memberBox.width)
         .attr('height', memberBox.height);
 
-      addExpandIcon(node);
-      addText(node);
+      const nodeExit = node
+        .exit()
+        .transition(transition)
+        .remove()
+        .attr('transform', (d) => `translate(${1 * source.y},${source.x})`)
+        .attr('fill-opacity', 0)
+        .attr('stroke-opacity', 0);
 
-      node.attr('transform', (d) => `translate(${d.y},${d.x})`);
+      const link = gLink.selectAll('path').data(links, (d) => d.target.id);
 
-      gLink
-        .selectAll('path')
-        .data(links)
-        .join('path')
+      // Enter any new links at the parent's previous position.
+      const linkEnter = link
+        .enter()
+        .append('path')
+        .attr(
+          'd',
+          d3
+            .link<unknown, d3.HierarchyPointNode<any>>(d3.curveStep)
+            .x((d) => d.y)
+            .y((d) => d.x)
+        );
+
+      link
+        .merge(linkEnter)
+        .transition(transition)
         .attr(
           'd',
           d3
@@ -128,81 +196,6 @@ export const Tree3 = () => {
         d.x0 = d.x;
         d.y0 = d.y;
       });
-
-      function addExpandIcon(nodeEnter) {
-        let expandIcon = nodeEnter
-          .append('g')
-          .attr('class', 'expandIcon')
-          .attr(
-            'transform',
-            (d) => `translate(${memberBox.width / 2 - 15},${-10})`
-          );
-
-        expandIcon
-          .append('circle')
-          .attr('cx', 0)
-          .attr('cy', 0)
-          .attr('r', 3)
-          .attr('fill', '#aaa');
-
-        expandIcon
-          .append('circle')
-          .attr('cx', 0)
-          .attr('cy', 10)
-          .attr('r', 3)
-          .attr('fill', '#aaa');
-
-        expandIcon
-          .append('circle')
-          .attr('cx', 0)
-          .attr('cy', 20)
-          .attr('r', 3)
-          .attr('fill', '#aaa');
-
-        expandIcon
-          .append('rect')
-          .attr('class', 'box')
-          .attr('x', -8)
-          .attr('y', -8)
-          .attr('width', 16)
-          .attr('height', 36)
-          .style('fill-opacity', 0)
-          .style('stroke-opacity', 0)
-          .on('click', (event, d) => {
-            // event.stopPropagation();
-            if (d.children) {
-              d._children = [...d.children];
-              d.children = null;
-            } else if (d._children) {
-              d.children = [...d._children];
-              d._children = null;
-            }
-            update(d);
-          });
-      }
-
-      function addText(nodeEnter) {
-        const yOffset = 10;
-
-        nodeEnter
-          .append('text')
-          .attr('dx', -(memberBox.width / 2) + 10)
-          .attr('dy', -memberBox.height / 2 + 25 + yOffset)
-          .attr('text-anchor', 'left')
-          .attr('class', 'name')
-          .attr('level', (d) => d.data.level)
-          .on('click', (event, d) => {
-            event.stopPropagation();
-            console.warn('Show modal for: ', d.data.name);
-          })
-          .text((d) => nodeName(d)) // Check for null firstName in the case of 'Unknown' lastName.
-          .style('fill-opacity', 1);
-      }
-
-      function nodeName(node) {
-        const person = node.data;
-        return person.name;
-      }
     };
     update(root);
   }, []);
