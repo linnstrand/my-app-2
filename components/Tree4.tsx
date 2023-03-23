@@ -6,7 +6,7 @@ const width = 1200;
 
 export const Tree3 = () => {
   const containerRef = useRef<HTMLDivElement>(null);
-
+  const svgRef = useRef<SVGSVGElement>(null);
   const dx = 800;
   const dy = width / 6;
   const margin = { top: 10, right: 120, bottom: 10, left: 40 };
@@ -18,8 +18,6 @@ export const Tree3 = () => {
   };
 
   useEffect(() => {
-    containerRef.current.innerHTML = '';
-
     const tree = d3
       .tree()
       .nodeSize([
@@ -27,9 +25,10 @@ export const Tree3 = () => {
         memberBox.width + memberBox.marginWidth,
       ])
       .separation(() => 0.5);
-    const root = d3.hierarchy(testdata, (person) => person.nodes);
+    const root = d3.hierarchy(testdata, (person) => {
+      return person.nodes;
+    });
 
-    console.log(root);
     root.x0 = dy / 20;
     root.y0 = 0;
 
@@ -39,65 +38,56 @@ export const Tree3 = () => {
         node.children = null;
       }
     });
+    const nodes = root.descendants().reverse();
+    const links = root.links();
 
-    const svg = d3
-      .select(containerRef.current)
-      .append('svg')
-      .attr('viewBox', [-margin.left, -margin.top, width, dx]);
-    const gContainer = svg
-      .append('g')
-      .attr('cursor', 'grab')
-      .attr('id', 'SVGcontainer')
-      .classed('svg-content-responsive', true);
-
-    const gLink = gContainer
-      .append('g')
+    const gLink = d3
+      .select(linesRef.current)
       .attr('fill', 'none')
       .attr('stroke', '#555')
       .attr('stroke-opacity', 0.4)
       .attr('stroke-width', 1.5);
 
-    const gNode = gContainer
-      .append('g')
+    const gNode = d3
+      .select(nodesRef.current)
       .attr('id', 'node-container')
       .attr('cursor', 'pointer')
-      .attr('pointer-events', 'all');
+      .attr('pointer-events', 'all')
+      .data(nodes);
 
     const update = (source) => {
       console.log('update with source: ', source);
 
-      const nodes = root.descendants().reverse();
-      const links = root.links();
-
       tree(root);
 
-      let x0 = width;
-      let x1 = -width;
-      root.each((d) => {
-        if (d.x > x1) x1 = d.x;
-        if (d.x < x0) x0 = d.x;
+      // find min & max x (vertical)
+      let left = root;
+      let right = root;
+      root.eachBefore((node) => {
+        if (node.x < left.x) {
+          left = node;
+        }
+        if (node.x > right.x) {
+          right = node;
+        }
       });
 
-      let height = x1 - x0 + margin.top + margin.bottom;
+      let height = right.x - left.x + margin.top + margin.bottom;
       height = Math.max(height, 320);
 
-      svg.attr('viewBox', () => [
+      d3.select(svgRef.current).attr('viewBox', () => [
         -margin.left - memberBox.width / 2,
-        x0 - margin.top - memberBox.height / 2,
+        left.x - margin.top - memberBox.height / 2,
         width,
         height + memberBox.height,
       ]);
 
       // update the nodes...
       const node = gNode
-        .selectAll('g')
-        .data(nodes)
-        .join('g')
+        .selectAll('rect')
+        .data(() => nodes)
+        .join('rect')
         .attr('fill-opacity', 1)
-        .attr('stroke-opacity', 1);
-
-      node
-        .append('rect')
         .attr('fill-opacity', 0.5)
         .attr('stroke-opacity', 1)
         .attr('fill', 'blue')
@@ -107,7 +97,21 @@ export const Tree3 = () => {
         .attr('height', memberBox.height);
 
       addExpandIcon(node);
-      addText(node);
+      const yOffset = 10;
+
+      gNode
+        .append('text')
+        .attr('dx', -(memberBox.width / 2) + 10)
+        .attr('dy', -memberBox.height / 2 + 25 + yOffset)
+        .attr('text-anchor', 'left')
+        .attr('class', 'name')
+        .attr('level', (d) => d.data.level)
+        .on('click', (event, d) => {
+          event.stopPropagation();
+          console.warn('Show modal for: ', d.data.name);
+        })
+        .text((d) => nodeName(d)) // Check for null firstName in the case of 'Unknown' lastName.
+        .style('fill-opacity', 1);
 
       node.attr('transform', (d) => `translate(${d.y},${d.x})`);
 
@@ -181,24 +185,6 @@ export const Tree3 = () => {
           });
       }
 
-      function addText(nodeEnter) {
-        const yOffset = 10;
-
-        nodeEnter
-          .append('text')
-          .attr('dx', -(memberBox.width / 2) + 10)
-          .attr('dy', -memberBox.height / 2 + 25 + yOffset)
-          .attr('text-anchor', 'left')
-          .attr('class', 'name')
-          .attr('level', (d) => d.data.level)
-          .on('click', (event, d) => {
-            event.stopPropagation();
-            console.warn('Show modal for: ', d.data.name);
-          })
-          .text((d) => nodeName(d)) // Check for null firstName in the case of 'Unknown' lastName.
-          .style('fill-opacity', 1);
-      }
-
       function nodeName(node) {
         const person = node.data;
         return person.name;
@@ -207,5 +193,14 @@ export const Tree3 = () => {
     update(root);
   }, []);
 
-  return <div ref={containerRef} className="container"></div>;
+  return (
+    <div ref={containerRef} className="container" id={'SVGcontainer'}>
+      <svg
+        ref={svgRef}
+        max-width="100%"
+        cursor="grab"
+        viewBox={`${-margin.left} ${-margin.top} ${width} ${dx}`}
+      ></svg>
+    </div>
+  );
 };
