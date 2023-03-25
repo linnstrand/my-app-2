@@ -17,12 +17,54 @@ html {
 
 body {
   margin: 0;
-  /* background-color: #202124; */
+  background-color: #202124;
+}
+
+.lines {
+  fill: none;
+  stroke: #555;
+  stroke-opacity: 0.6;
+  stroke-width: 1.5;
+}
+
+.node {
+  cursor: pointer;
+  pointer-events: all;
 }
 
 .node-frame {
   fill: rgb(173, 173, 187);
 }
+.tree-container {
+  display: flex;
+  position: relative;
+  flex-direction: row;
+}
 
-.node-name {
+.card {
+  width: 10rem;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  word-wrap: break-word;
+  background-color: #fff;
+  background-clip: border-box;
+  border: 1px solid rgba(0, 0, 0, 0.125);
+  border-radius: 0.25rem;
+}
+
+.card-body {
+  flex: 1 1 auto;
+  padding: 0.25rem;
+}
+
+.card-text {
+  margin-top: 0;
+  margin-bottom: 1rem;
+}
+
+.card-title {
+  margin-top: 0.25rem;
+  margin-bottom: 0.25rem;
 }

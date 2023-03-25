@@ -121,15 +121,7 @@ export const Tree3 = () => {
         .append('g')
         .attr('transform', (d) => `translate(${source.y0},${source.x0})`)
         .attr('fill-opacity', 0)
-        .attr('stroke-opacity', 0);
-
-      const nodeFrame = nodeEnter
-        .append('rect')
-        .attr('class', 'node-frame')
-        .attr('x', 0)
-        .attr('y', 0)
-        .attr('width', 0)
-        .attr('height', 0)
+        .attr('stroke-opacity', 0)
         .on('click', (event, d) => {
           if (d.children) {
             d._children = [...d.children];
@@ -141,12 +133,37 @@ export const Tree3 = () => {
           update(d);
         });
 
+      const nodeFrame = nodeEnter
+        .append('rect')
+        .attr('class', 'node-frame')
+        .attr('x', 0)
+        .attr('y', 0)
+        .attr('width', 0)
+        .attr('height', 0);
+      // nodeEnter
+      //   .append('text')
+      //   .attr('class', 'node-name')
+      //   .attr('level', (d) => d.data.level)
+      //   .text((d) => d.data?.name)
+      //   .style('fill-opacity', 1);
+
       nodeEnter
-        .append('text')
-        .attr('class', 'node-name')
-        .attr('level', (d) => d.data.level)
-        .text((d) => d.data?.name)
-        .style('fill-opacity', 1);
+        .append('foreignObject')
+        .attr('x', -(memberBox.width / 2))
+        .attr('y', -(memberBox.height / 2))
+        .attr('width', memberBox.width)
+        .attr('height', memberBox.height).html(`<div class="card">
+  <div class="card-body">
+    <h5 class="card-title">Card title</h5>
+    <p class="card-text">
+      Some quick example text to build on the card title and make up the
+      bulk of the cards content.
+    </p>
+    <a href="#" class="btn btn-primary">
+      Go somewhere
+    </a>
+  </div>
+</div>`);
 
       // Transition nodes to their new position.
       const nodeUpdate = node
