@@ -3,6 +3,8 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import testdata from '../testdata.json';
 
 const width = 1200;
+const startWidth = 940;
+const startHeight = 940;
 
 export const Tree3 = () => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -11,7 +13,7 @@ export const Tree3 = () => {
   const dy = width / 6;
   const margin = { top: 10, right: 120, bottom: 10, left: 40 };
   const memberBox = {
-    width: 205,
+    width: 160,
     height: 65,
     marginHeight: 180,
     marginWidth: 50,
@@ -43,7 +45,11 @@ export const Tree3 = () => {
     const svg = d3
       .select(containerRef.current)
       .append('svg')
-      .attr('viewBox', [-margin.left, -margin.top, width, dx]);
+      .attr('viewBox', [-margin.left, -margin.top, width, dx])
+      .attr('preserveAspectRatio', 'xMidYMid meet')
+      .attr('height', startHeight)
+      .attr('width', startWidth);
+
     const gContainer = svg
       .append('g')
       .attr('cursor', 'grab')
@@ -67,25 +73,39 @@ export const Tree3 = () => {
       const nodes = root.descendants().reverse();
       const links = root.links();
 
+      // how many items on the top lvl?
+
       tree(root);
 
       let x0 = width;
       let x1 = -width;
+      let y0 = startHeight;
+      let y1 = -startHeight;
       root.each((d) => {
         if (d.x > x1) x1 = d.x;
         if (d.x < x0) x0 = d.x;
+        if (d.y > y1) y1 = d.y;
+        if (d.y < y0) y0 = d.y;
       });
 
-      const height = Math.max(x1 - x0 + margin.top + margin.bottom, 320);
+      const height = Math.max(
+        x1 - x0 + margin.top + margin.bottom + memberBox.height * 2,
+        startWidth
+      );
+      const wwidth = Math.max(
+        y1 - y0 + margin.left + margin.right + memberBox.width / 2
+      );
+
+      const diff = height / startWidth;
 
       const transition = svg
         .transition()
         .duration(200)
         .attr('viewBox', [
           -margin.left - memberBox.width / 2,
-          x0 - margin.top - memberBox.height / 2,
-          width,
-          height + memberBox.height,
+          x0 - memberBox.height - margin.top,
+          wwidth,
+          height,
         ])
         .tween(
           'resize',
@@ -103,9 +123,9 @@ export const Tree3 = () => {
         .attr('fill-opacity', 0)
         .attr('stroke-opacity', 0);
 
-      nodeEnter
+      const nodeFrame = nodeEnter
         .append('rect')
-        .attr('class', 'frame')
+        .attr('class', 'node-frame')
         .attr('x', 0)
         .attr('y', 0)
         .attr('width', 0)
@@ -123,10 +143,7 @@ export const Tree3 = () => {
 
       nodeEnter
         .append('text')
-        .attr('dx', -(memberBox.width / 2) + 10)
-        .attr('dy', -memberBox.height / 2 + 25 + 10)
-        .attr('text-anchor', 'left')
-        .attr('class', 'name')
+        .attr('class', 'node-name')
         .attr('level', (d) => d.data.level)
         .text((d) => d.data?.name)
         .style('fill-opacity', 1);
@@ -139,11 +156,9 @@ export const Tree3 = () => {
         .attr('fill-opacity', 1)
         .attr('stroke-opacity', 1);
 
-      nodeUpdate
-        .select('rect.frame')
-        .attr('fill-opacity', 0.5)
+      nodeFrame
+        .attr('fill-opacity', (d) => (d._children || d.children ? 1 : 0.5))
         .attr('stroke-opacity', 1)
-        .attr('fill', 'blue')
         .attr('x', -(memberBox.width / 2))
         .attr('y', -(memberBox.height / 2))
         .attr('width', memberBox.width)
