@@ -32,9 +32,15 @@ body {
   pointer-events: all;
 }
 
+.node-container {
+  fill-opacity: 1;
+  stroke-opacity: 1;
+}
+
 .node-frame {
   fill: rgb(173, 173, 187);
 }
+
 .tree-container {
   display: flex;
   position: relative;
@@ -42,7 +48,6 @@ body {
 }
 
 .card {
-  width: 10rem;
   position: relative;
   display: flex;
   flex-direction: column;
