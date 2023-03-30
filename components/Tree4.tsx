@@ -1,6 +1,13 @@
 import * as d3 from 'd3';
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  useTransition,
+} from 'react';
 import testdata from '../testdata.json';
+import { animated, useSpring } from '@react-spring/web';
 
 const width = 1200;
 const startWidth = 940;
@@ -47,9 +54,9 @@ export const Tree4 = () => {
     .separation(() => 0.5);
 
   const update = (source = root) => {
-    tree(root);
     setNodes(root.descendants().reverse());
     setLinks(root.links());
+    tree(root);
 
     let x0 = width;
     let x1 = -width;
@@ -70,6 +77,7 @@ export const Tree4 = () => {
       y1 - y0 + margin.left + margin.right + memberBox.width / 2
     );
 
+    // when this changes, we need to do a node update
     setView(
       `${-margin.left - memberBox.width / 2} ${
         x0 - memberBox.height - margin.top
@@ -122,8 +130,28 @@ export const Tree4 = () => {
 };
 
 const Leaf = ({ n, update }) => {
+  const props = useSpring({
+    from: { opacity: 0 },
+    to: { opacity: 1 },
+  });
+
+  const springs = useSpring({
+    from: { transform: `translate(${n.y}, ${n.x})` },
+    to: { transform: `translate(${n.y0}, ${n.x0})` },
+  });
+
+  // const [transitions, api] = useTransition(data, () => ({
+  //   from: { opacity: 0 },
+  //   enter: { opacity: 1 },
+  //   leave: { opacity: 1 },
+  // }))
+
   return (
-    <g className="node-container" transform={`translate(${n.y}, ${n.x})`}>
+    <animated.g
+      style={springs}
+      className="node-container"
+      transform={`translate(${n.y}, ${n.x})`}
+    >
       <foreignObject
         x={-memberBox.width / 2}
         y={-memberBox.height / 2}
@@ -153,6 +181,6 @@ const Leaf = ({ n, update }) => {
           </div>
         </div>
       </foreignObject>
-    </g>
+    </animated.g>
   );
 };

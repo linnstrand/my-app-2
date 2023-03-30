@@ -68,7 +68,7 @@ export const Tree = () => {
       .attr('x', 100)
       .attr('y', 400)
       .attr('width', 100)
-      .attr('height', 40).html(` <div class="card">
+      .attr('height', 40).html(`<div class="card">
         <div class="card-body">
           <h5 class="card-title">Card title</h5>
           <p class="card-text">
