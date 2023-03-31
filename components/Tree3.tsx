@@ -1,19 +1,27 @@
 import * as d3 from 'd3';
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import testdata from '../testdata.json';
 
 interface IdHierarchyNode<T> extends d3.HierarchyNode<T> {
-  id?: string;
-  _children?: any[];
+  id: string;
+  _children?: Item[];
   x0: number;
   y0: number;
 }
 
 interface IdHierarchyPointNode<T> extends d3.HierarchyPointNode<T> {
-  id?: string;
-  _children?: any[];
+  id: string;
+  _children?: IdHierarchyPointNode<Item>[];
   x0: number;
   y0: number;
+}
+
+interface Item {
+  id: string;
+  name: string;
+  value?: number;
+  target?: Partial<d3.HierarchyRectangularNode<Item>>;
+  color?: string;
 }
 
 const width = 1200;
@@ -31,11 +39,11 @@ const memberBox = {
 
 export const Tree3 = () => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [root, setRoot] = useState<IdHierarchyNode<any>>(() => {
+  const root = useMemo<IdHierarchyPointNode<Item>>(() => {
     const r = d3.hierarchy(
       testdata,
       (person) => person.nodes
-    ) as IdHierarchyNode<any>;
+    ) as IdHierarchyPointNode<any>;
     r.x0 = dy / 20;
     r.y0 = 0;
 
@@ -47,10 +55,10 @@ export const Tree3 = () => {
       }
     });
     return r;
-  });
+  }, []);
 
   const tree = d3
-    .tree<any>()
+    .tree<Item>()
     .nodeSize([
       memberBox.height + memberBox.marginHeight,
       memberBox.width + memberBox.marginWidth,
@@ -63,12 +71,6 @@ export const Tree3 = () => {
     const svg = d3
       .select(containerRef.current)
       .append('svg')
-      .attr(
-        'viewBox',
-        `${-margin.left - memberBox.width / 2} ${
-          -memberBox.height - margin.top
-        } ${startWidth} ${startHeight}`
-      )
       .attr('preserveAspectRatio', 'xMidYMid meet')
       .attr('height', `${startHeight}px`)
       .attr('width', `${startWidth}px`);
@@ -79,7 +81,7 @@ export const Tree3 = () => {
       .attr('id', 'SVGcontainer')
       .classed('svg-content-responsive', true);
 
-    const gLink = gContainer
+    gContainer
       .append('g')
       .attr('id', 'link-container')
       .attr('fill', 'none')
@@ -87,7 +89,7 @@ export const Tree3 = () => {
       .attr('stroke-opacity', 0.4)
       .attr('stroke-width', 1.5);
 
-    const gNode = gContainer
+    gContainer
       .append('g')
       .attr('id', 'node-container')
       .attr('cursor', 'pointer')
@@ -96,8 +98,8 @@ export const Tree3 = () => {
     update(root);
   }, []);
 
-  const update = (source: IdHierarchyPointNode<any>) => {
-    const pointNode = tree(root) as IdHierarchyPointNode<any>;
+  const update = (source: IdHierarchyPointNode<Item>) => {
+    const pointNode = tree(root) as IdHierarchyPointNode<Item>;
     const nodes = pointNode.descendants().reverse();
     const links = pointNode.links();
 
@@ -136,15 +138,13 @@ export const Tree3 = () => {
     const node = d3
       .select('#node-container')
       .selectAll('g')
-      .data(nodes, (d) => d.id);
+      .data(nodes, (d: IdHierarchyPointNode<Item>) => d.id);
 
     // Enter new nodes at the clicked node
     const nodeEnter = node
       .enter()
       .append('g')
       .attr('transform', (d) => `translate(${source.y0},${source.x0})`)
-      .attr('fill-opacity', 0)
-      .attr('stroke-opacity', 0)
       .on('click', (event, d) => {
         if (d.children) {
           d._children = [...d.children];
@@ -156,31 +156,17 @@ export const Tree3 = () => {
         update(d);
       });
 
-    const nodeFrame = nodeEnter
-      .append('rect')
-      .attr('class', 'node-frame')
-      .attr('x', 0)
-      .attr('y', 0)
-      .attr('width', 0)
-      .attr('height', 0);
-
-    nodeEnter
-      .append('text')
-      .attr('class', 'node-name')
-      .attr('text-anchor', 'middle')
-      .attr('level', (d) => d.data.level)
-      .text((d) => d.data.name)
-      .style('fill-opacity', 1);
-
     // Transition nodes to their new position.
-    const nodeUpdate = node
+    node
       .merge(nodeEnter)
       .transition(transition)
       .attr('transform', (d) => `translate(${d.y},${d.x})`)
       .attr('fill-opacity', 1)
       .attr('stroke-opacity', 1);
 
-    nodeFrame
+    nodeEnter
+      .append('rect')
+      .attr('class', 'node-frame')
       .attr('fill-opacity', (d) => (d._children || d.children ? 1 : 0.5))
       .attr('stroke-opacity', 1)
       .attr('x', -(memberBox.width / 2))
@@ -188,7 +174,25 @@ export const Tree3 = () => {
       .attr('width', memberBox.width)
       .attr('height', memberBox.height);
 
-    const nodeExit = node
+    const text = nodeEnter.append('text').style('fill-opacity', 1);
+
+    text
+      .append('tspan')
+      .text((d) => d.data.name)
+      .attr('x', -(memberBox.width / 2 - 6))
+      .attr('y', -(memberBox.height / 3 - 2));
+    text
+      .append('tspan')
+      .text((d) => d.data.name)
+      .attr('x', -(memberBox.width / 2 - 6))
+      .attr('y', -(memberBox.height / 3) + 22);
+    text
+      .append('tspan')
+      .text((d) => d.data.name)
+      .attr('x', -(memberBox.width / 2 - 6))
+      .attr('y', -(memberBox.height / 3) + 42);
+
+    node
       .exit()
       .transition(transition)
       .remove()
@@ -199,7 +203,7 @@ export const Tree3 = () => {
     const link = d3
       .select('#link-container')
       .selectAll('path')
-      .data(links, (d) => d.target.id);
+      .data(links, (d: Item) => d.target.id);
 
     // Enter any new links at the parent's previous position.
     const curve = d3
@@ -234,7 +238,7 @@ export const Tree3 = () => {
       });
 
     // Stash the old positions for transition.
-    pointNode.eachBefore((d) => {
+    pointNode.each((d) => {
       d.x0 = d.x;
       d.y0 = d.y;
     });
