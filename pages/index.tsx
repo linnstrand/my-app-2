@@ -17,9 +17,9 @@ export default function Home() {
         <link rel="icon" href="/favicon.ico" />
       </Head>
       <main className={styles.main}>
-        <Tree />
-        <Tree2 />
         <Tree3 />
+        <Tree2 />
+        <Tree />
         <Tree4 />
       </main>
     </>
