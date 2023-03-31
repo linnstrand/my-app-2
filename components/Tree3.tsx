@@ -2,62 +2,72 @@ import * as d3 from 'd3';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import testdata from '../testdata.json';
 
+interface IdHierarchyNode<T> extends d3.HierarchyNode<T> {
+  id?: string;
+  _children?: any[];
+  x0: number;
+  y0: number;
+}
+
+interface IdHierarchyPointNode<T> extends d3.HierarchyPointNode<T> {
+  id?: string;
+  _children?: any[];
+  x0: number;
+  y0: number;
+}
+
 const width = 1200;
 const startWidth = 940;
 const startHeight = 940;
-
-const Leaf = () => {
-  return (
-    <div className="card">
-      <div className="card-body">
-        <h5 className="card-title">{n.data.name}</h5>
-        <button
-          onClick={() => {
-            if (n.children) {
-              n._children = [...n.children];
-              n.children = null;
-            } else if (n._children) {
-              n.children = [...n._children];
-              n._children = null;
-            }
-            update(n);
-          }}
-          className="btn btn-primary"
-        >
-          expand
-        </button>
-      </div>
-    </div>
-  );
+const dx = 800;
+const dy = width / 6;
+const margin = { top: 10, right: 120, bottom: 10, left: 40 };
+const memberBox = {
+  width: 160,
+  height: 65,
+  marginHeight: 180,
+  marginWidth: 50,
 };
 
 export const Tree3 = () => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const [root, setRoot] = useState<IdHierarchyNode<any>>(() => {
+    const r = d3.hierarchy(
+      testdata,
+      (person) => person.nodes
+    ) as IdHierarchyNode<any>;
+    r.x0 = dy / 20;
+    r.y0 = 0;
 
-  const dx = 800;
-  const dy = width / 6;
-  const margin = { top: 10, right: 120, bottom: 10, left: 40 };
-  const memberBox = {
-    width: 160,
-    height: 65,
-    marginHeight: 180,
-    marginWidth: 50,
-  };
+    r.descendants().forEach((node, i) => {
+      node.id = i.toString();
+      node._children = node.children;
+      if (node.depth && node.data.level > 3) {
+        node.children = null;
+      }
+    });
+    return r;
+  });
+
+  const tree = d3
+    .tree<any>()
+    .nodeSize([
+      memberBox.height + memberBox.marginHeight,
+      memberBox.width + memberBox.marginWidth,
+    ])
+    .separation(() => 0.5);
 
   useEffect(() => {
-    const update = (source) => {
-      const nodes = root.descendants().reverse();
-      const links = root.links();
-
-      // how many items on the top lvl?
-
-      tree(root);
+    const update = (source: IdHierarchyPointNode<any>) => {
+      const pointNode = tree(root) as IdHierarchyPointNode<any>;
+      const nodes = pointNode.descendants().reverse();
+      const links = pointNode.links();
 
       let x0 = width;
       let x1 = -width;
       let y0 = startHeight;
       let y1 = -startHeight;
-      root.each((d) => {
+      pointNode.each((d) => {
         if (d.x > x1) x1 = d.x;
         if (d.x < x0) x0 = d.x;
         if (d.y > y1) y1 = d.y;
@@ -72,9 +82,8 @@ export const Tree3 = () => {
         y1 - y0 + margin.left + margin.right + memberBox.width / 2
       );
 
-      const diff = height / startWidth;
-
-      const transition = svg
+      const transition = d3
+        .select(containerRef.current)
         .transition()
         .duration(200)
         .attr(
@@ -105,14 +114,6 @@ export const Tree3 = () => {
           update(d);
         });
 
-      nodeEnter
-        .append('foreignObject')
-        .attr('x', -(memberBox.width / 2))
-        .attr('y', -(memberBox.height / 2))
-        .attr('width', memberBox.width)
-        .attr('height', memberBox.height)
-        .call(() => <Leaf />);
-
       const nodeFrame = nodeEnter
         .append('rect')
         .attr('class', 'node-frame')
@@ -126,7 +127,7 @@ export const Tree3 = () => {
         .attr('class', 'node-name')
         .attr('text-anchor', 'middle')
         .attr('level', (d) => d.data.level)
-        .text((d) => d.name)
+        .text((d) => d.data.name)
         .style('fill-opacity', 1);
 
       // Transition nodes to their new position.
@@ -188,41 +189,20 @@ export const Tree3 = () => {
         });
 
       // Stash the old positions for transition.
-      root.eachBefore((d) => {
+      pointNode.eachBefore((d) => {
         d.x0 = d.x;
         d.y0 = d.y;
       });
     };
-
     containerRef.current.innerHTML = '';
-
-    const tree = d3
-      .tree()
-      .nodeSize([
-        memberBox.height + memberBox.marginHeight,
-        memberBox.width + memberBox.marginWidth,
-      ])
-      .separation(() => 0.5);
-    const root = d3.hierarchy(testdata, (person) => person.nodes);
-
-    root.x0 = dy / 20;
-    root.y0 = 0;
-
-    root.descendants().forEach((node, i) => {
-      node.id = i;
-      node._children = node.children;
-      if (node.depth && node.data.level > 3) {
-        node.children = null;
-      }
-    });
 
     const svg = d3
       .select(containerRef.current)
       .append('svg')
       .attr('viewBox', [-margin.left, -margin.top, width, dx])
       .attr('preserveAspectRatio', 'xMidYMid meet')
-      .attr('height', startHeight)
-      .attr('width', startWidth);
+      .attr('height', `${startHeight}px`)
+      .attr('width', `${startWidth}px`);
 
     const gContainer = svg
       .append('g')
