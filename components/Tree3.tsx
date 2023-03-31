@@ -126,7 +126,7 @@ export const Tree3 = () => {
         .attr('class', 'node-name')
         .attr('text-anchor', 'middle')
         .attr('level', (d) => d.data.level)
-        .text((d) => d.x + ' ' + d.x0 + ' ' + d.y + ' ' + d.y0 + ' ')
+        .text((d) => d.name)
         .style('fill-opacity', 1);
 
       // Transition nodes to their new position.

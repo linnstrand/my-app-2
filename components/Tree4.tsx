@@ -1,13 +1,7 @@
 import * as d3 from 'd3';
-import {
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-  useTransition,
-} from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import testdata from '../testdata.json';
-import { animated, useSpring } from '@react-spring/web';
+import { animated, useSpring, useTransition } from '@react-spring/web';
 
 const width = 1200;
 const startWidth = 940;
@@ -59,7 +53,9 @@ export const Tree4 = () => {
   });
 
   const [view, setView] = useState(
-    `${-margin.left} ${-margin.top} ${width} ${dx}`
+    `${-margin.left - memberBox.width / 2} ${
+      -memberBox.height - margin.top
+    } ${startWidth} ${startHeight}`
   );
 
   const tree = d3
@@ -71,8 +67,15 @@ export const Tree4 = () => {
     .separation(() => 0.5);
 
   const update = (source) => {
-    setNodes(root.descendants().reverse());
+    tree(root) as IdHierarchyPointNode<any>;
+    setNodes(root.descendants());
     setLinks(root.links());
+  };
+
+  useEffect(() => {
+    if (nodes) {
+      return;
+    }
     const pointNode = tree(root) as IdHierarchyPointNode<any>;
 
     let x0 = width;
@@ -87,7 +90,7 @@ export const Tree4 = () => {
     });
 
     const height = Math.max(
-      x1 - x0 + margin.top + margin.bottom + memberBox.height * 2,
+      x1 - x0 + margin.top + margin.bottom + memberBox.height / 2,
       startWidth
     );
     const wwidth = Math.max(
@@ -96,22 +99,15 @@ export const Tree4 = () => {
 
     // when this changes, we need to do a node update
     setView(
-      `${-margin.left - memberBox.width / 2} ${
+      `${-memberBox.width / 2} ${
         x0 - memberBox.height - margin.top
       } ${wwidth} ${height}`
     );
-
     // Stash the old positions for transition.
     pointNode.eachBefore((d) => {
       d.x0 = d.x;
       d.y0 = d.y;
     });
-  };
-
-  useEffect(() => {
-    if (nodes) {
-      return;
-    }
     update(root);
   }, []);
 
@@ -147,35 +143,27 @@ export const Tree4 = () => {
 };
 
 const Leaf = ({ n, update }) => {
-  const props = useSpring({
-    from: { opacity: 0 },
-    to: { opacity: 1 },
-  });
-
-  // const springs = useSpring({
-  //   transform: n.children
-  //     ? `translate(${n.y}, ${n.x})`
-  //     : `translate(${n.y0}, ${n.x0})`,
-  // });
-
   const springs = useSpring({
-    transform: n.children
-      ? `translate(${n.y}, ${n.x})`
-      : `translate(${n.y0}, ${n.x0})`,
+    config: {
+      duration: 200,
+    },
+    to: { x: n.y, y: n.x },
+    from: { x: n.parent?.y, y: n.parent?.x },
   });
 
-  // const [transitions, api] = useTransition(data, () => ({
-  //   from: { opacity: 0 },
-  //   enter: { opacity: 1 },
-  //   leave: { opacity: 1 },
-  // }))
+  const onClick = () => {
+    if (n.children) {
+      n._children = [...n.children];
+      n.children = null;
+    } else if (n._children) {
+      n.children = [...n._children];
+      n._children = null;
+    }
+    update(n);
+  };
 
   return (
-    <animated.g
-      style={springs}
-      className="node-container"
-      transform={`translate(${n.y}, ${n.x})`}
-    >
+    <animated.g style={springs} className="node-container">
       <foreignObject
         x={-memberBox.width / 2}
         y={-memberBox.height / 2}
@@ -187,19 +175,7 @@ const Leaf = ({ n, update }) => {
         <div className="card">
           <div className="card-body">
             <h5 className="card-title">{n.data.name}</h5>
-            <button
-              onClick={() => {
-                if (n.children) {
-                  n._children = [...n.children];
-                  n.children = null;
-                } else if (n._children) {
-                  n.children = [...n._children];
-                  n._children = null;
-                }
-                update(n);
-              }}
-              className="btn btn-primary"
-            >
+            <button onClick={onClick} className="btn btn-primary">
               expand
             </button>
           </div>
