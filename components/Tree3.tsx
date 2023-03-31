@@ -6,6 +6,31 @@ const width = 1200;
 const startWidth = 940;
 const startHeight = 940;
 
+const Leaf = () => {
+  return (
+    <div className="card">
+      <div className="card-body">
+        <h5 className="card-title">{n.data.name}</h5>
+        <button
+          onClick={() => {
+            if (n.children) {
+              n._children = [...n.children];
+              n.children = null;
+            } else if (n._children) {
+              n.children = [...n._children];
+              n._children = null;
+            }
+            update(n);
+          }}
+          className="btn btn-primary"
+        >
+          expand
+        </button>
+      </div>
+    </div>
+  );
+};
+
 export const Tree3 = () => {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -20,55 +45,6 @@ export const Tree3 = () => {
   };
 
   useEffect(() => {
-    containerRef.current.innerHTML = '';
-
-    const tree = d3
-      .tree()
-      .nodeSize([
-        memberBox.height + memberBox.marginHeight,
-        memberBox.width + memberBox.marginWidth,
-      ])
-      .separation(() => 0.5);
-    const root = d3.hierarchy(testdata, (person) => person.nodes);
-
-    root.x0 = dy / 20;
-    root.y0 = 0;
-
-    root.descendants().forEach((node, i) => {
-      node.id = i;
-      node._children = node.children;
-      if (node.depth && node.data.level > 3) {
-        node.children = null;
-      }
-    });
-
-    const svg = d3
-      .select(containerRef.current)
-      .append('svg')
-      .attr('viewBox', [-margin.left, -margin.top, width, dx])
-      .attr('preserveAspectRatio', 'xMidYMid meet')
-      .attr('height', startHeight)
-      .attr('width', startWidth);
-
-    const gContainer = svg
-      .append('g')
-      .attr('cursor', 'grab')
-      .attr('id', 'SVGcontainer')
-      .classed('svg-content-responsive', true);
-
-    const gLink = gContainer
-      .append('g')
-      .attr('fill', 'none')
-      .attr('stroke', '#555')
-      .attr('stroke-opacity', 0.4)
-      .attr('stroke-width', 1.5);
-
-    const gNode = gContainer
-      .append('g')
-      .attr('id', 'node-container')
-      .attr('cursor', 'pointer')
-      .attr('pointer-events', 'all');
-
     const update = (source) => {
       const nodes = root.descendants().reverse();
       const links = root.links();
@@ -101,21 +77,17 @@ export const Tree3 = () => {
       const transition = svg
         .transition()
         .duration(200)
-        .attr('viewBox', [
-          -margin.left - memberBox.width / 2,
-          x0 - memberBox.height - margin.top,
-          wwidth,
-          height,
-        ])
-        .tween(
-          'resize',
-          window.ResizeObserver ? null : () => () => svg.dispatch('toggle')
+        .attr(
+          'viewBox',
+          `${-margin.left - memberBox.width / 2} ${
+            x0 - memberBox.height - margin.top
+          } ${wwidth} ${height}`
         );
 
       // update the nodes...
       const node = gNode.selectAll('g').data(nodes, (d) => d.id);
 
-      // Enter new nodes
+      // Enter new nodes at the clicked node
       const nodeEnter = node
         .enter()
         .append('g')
@@ -133,6 +105,14 @@ export const Tree3 = () => {
           update(d);
         });
 
+      nodeEnter
+        .append('foreignObject')
+        .attr('x', -(memberBox.width / 2))
+        .attr('y', -(memberBox.height / 2))
+        .attr('width', memberBox.width)
+        .attr('height', memberBox.height)
+        .call(() => <Leaf />);
+
       const nodeFrame = nodeEnter
         .append('rect')
         .attr('class', 'node-frame')
@@ -140,30 +120,14 @@ export const Tree3 = () => {
         .attr('y', 0)
         .attr('width', 0)
         .attr('height', 0);
-      // nodeEnter
-      //   .append('text')
-      //   .attr('class', 'node-name')
-      //   .attr('level', (d) => d.data.level)
-      //   .text((d) => d.data?.name)
-      //   .style('fill-opacity', 1);
 
       nodeEnter
-        .append('foreignObject')
-        .attr('x', -(memberBox.width / 2))
-        .attr('y', -(memberBox.height / 2))
-        .attr('width', memberBox.width)
-        .attr('height', memberBox.height).html(`<div class="card">
-  <div class="card-body">
-    <h5 class="card-title">Card title</h5>
-    <p class="card-text">
-      Some quick example text to build on the card title and make up the
-      bulk of the cards content.
-    </p>
-    <a href="#" class="btn btn-primary">
-      Go somewhere
-    </a>
-  </div>
-</div>`);
+        .append('text')
+        .attr('class', 'node-name')
+        .attr('text-anchor', 'middle')
+        .attr('level', (d) => d.data.level)
+        .text((d) => d.x + ' ' + d.x0 + ' ' + d.y + ' ' + d.y0 + ' ')
+        .style('fill-opacity', 1);
 
       // Transition nodes to their new position.
       const nodeUpdate = node
@@ -229,6 +193,56 @@ export const Tree3 = () => {
         d.y0 = d.y;
       });
     };
+
+    containerRef.current.innerHTML = '';
+
+    const tree = d3
+      .tree()
+      .nodeSize([
+        memberBox.height + memberBox.marginHeight,
+        memberBox.width + memberBox.marginWidth,
+      ])
+      .separation(() => 0.5);
+    const root = d3.hierarchy(testdata, (person) => person.nodes);
+
+    root.x0 = dy / 20;
+    root.y0 = 0;
+
+    root.descendants().forEach((node, i) => {
+      node.id = i;
+      node._children = node.children;
+      if (node.depth && node.data.level > 3) {
+        node.children = null;
+      }
+    });
+
+    const svg = d3
+      .select(containerRef.current)
+      .append('svg')
+      .attr('viewBox', [-margin.left, -margin.top, width, dx])
+      .attr('preserveAspectRatio', 'xMidYMid meet')
+      .attr('height', startHeight)
+      .attr('width', startWidth);
+
+    const gContainer = svg
+      .append('g')
+      .attr('cursor', 'grab')
+      .attr('id', 'SVGcontainer')
+      .classed('svg-content-responsive', true);
+
+    const gLink = gContainer
+      .append('g')
+      .attr('fill', 'none')
+      .attr('stroke', '#555')
+      .attr('stroke-opacity', 0.4)
+      .attr('stroke-width', 1.5);
+
+    const gNode = gContainer
+      .append('g')
+      .attr('id', 'node-container')
+      .attr('cursor', 'pointer')
+      .attr('pointer-events', 'all');
+
     update(root);
   }, []);
 

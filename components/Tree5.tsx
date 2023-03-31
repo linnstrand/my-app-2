@@ -1,13 +1,7 @@
 import * as d3 from 'd3';
-import {
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-  useTransition,
-} from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import testdata from '../testdata.json';
-import { animated, useSpring } from '@react-spring/web';
+import { animated, useSpring, useTransition } from '@react-spring/web';
 
 const width = 1200;
 const startWidth = 940;
@@ -23,9 +17,14 @@ const memberBox = {
   marginWidth: 50,
 };
 
-export const Tree4 = () => {
-  const [nodes, setNodes] = useState([]);
+export const Tree5 = () => {
+  const svgRef = useRef<SVGSVGElement>(null);
+  const nodesRef = useRef<SVGSVGElement>(null);
+
+  const [nodes, setNodes] = useState();
   const [links, setLinks] = useState([]);
+  const [initiated, setInitiated] = useState(false);
+
   const [root, setRoot] = useState(() => {
     const r = d3.hierarchy(testdata, (person) => person.nodes);
     r.x0 = dy / 20;
@@ -54,10 +53,7 @@ export const Tree4 = () => {
     .separation(() => 0.5);
 
   const update = (source) => {
-    setNodes(root.descendants().reverse());
-    setLinks(root.links());
-    tree(root);
-
+    const noode = [...nodes, source];
     let x0 = width;
     let x1 = -width;
     let y0 = startHeight;
@@ -68,7 +64,6 @@ export const Tree4 = () => {
       if (d.y > y1) y1 = d.y;
       if (d.y < y0) y0 = d.y;
     });
-
     const height = Math.max(
       x1 - x0 + margin.top + margin.bottom + memberBox.height * 2,
       startWidth
@@ -77,32 +72,76 @@ export const Tree4 = () => {
       y1 - y0 + margin.left + margin.right + memberBox.width / 2
     );
 
-    // when this changes, we need to do a node update
-    setView(
-      `${-margin.left - memberBox.width / 2} ${
-        x0 - memberBox.height - margin.top
-      } ${wwidth} ${height}`
-    );
+    const svg = d3.select(svgRef.current);
+
+    const transition = svg
+      .transition()
+      .duration(200)
+      .attr(
+        'viewBox',
+        `${-margin.left - memberBox.width / 2} ${
+          x0 - memberBox.height - margin.top
+        } ${wwidth} ${height}`
+      );
+
+    const node = d3
+      .select(nodesRef.current)
+      .selectAll('g')
+      .data(noode)
+      .join('g');
+
+    // Enter new nodes at the clicked node
+    const nodeEnter = node
+      .enter()
+      .attr('transform', (d) => `translate(${source.y0},${source.x0})`)
+      .attr('fill-opacity', 0)
+      .attr('stroke-opacity', 0);
+
+    const nodeUpdate = node
+      .merge(nodeEnter)
+      .transition(transition)
+      .attr('transform', (d) => `translate(${d.y},${d.x})`)
+      .attr('fill-opacity', 1)
+      .attr('stroke-opacity', 1);
+    //
+    const nodeExit = node
+      .exit()
+      .transition(transition)
+      .remove()
+      .attr('transform', (d) => `translate(${source.y},${source.x})`)
+      .attr('fill-opacity', 0)
+      .attr('stroke-opacity', 0);
 
     // Stash the old positions for transition.
     root.eachBefore((d) => {
       d.x0 = d.x;
       d.y0 = d.y;
     });
+    setNodes(noode);
   };
 
   useEffect(() => {
-    if (nodes.length > 0) {
-      return;
-    }
-    update(root);
+    const nodes = root.descendants().reverse();
+    const links = root.links();
+    setNodes(nodes);
+    setLinks(links);
+
+    tree(root);
   }, []);
+
+  useEffect(() => {
+    if (nodes && initiated !== true) {
+      update(root);
+      setInitiated(true);
+    }
+  }, [initiated]);
 
   return (
     <div>
       <div className="tree-container">
         <div className="container">
           <svg
+            ref={svgRef}
             preserveAspectRatio="xMidYMid meet"
             width={`${startWidth}px`}
             height={`${startHeight}px`}
@@ -118,9 +157,10 @@ export const Tree4 = () => {
                   return <path key={l} d={l} />;
                 })}
             </g>
-            <g className="nodes">
-              {nodes &&
-                nodes.map((n) => <Leaf key={n.id} n={n} update={update} />)}
+            <g className="nodes" ref={nodesRef}>
+              {nodes?.map((n) => (
+                <Leaf key={n.id} node={n} update={update} />
+              ))}
             </g>
           </svg>
         </div>
@@ -129,36 +169,9 @@ export const Tree4 = () => {
   );
 };
 
-const Leaf = ({ n, update }) => {
-  const props = useSpring({
-    from: { opacity: 0 },
-    to: { opacity: 1 },
-  });
-
-  // const springs = useSpring({
-  //   transform: n.children
-  //     ? `translate(${n.y}, ${n.x})`
-  //     : `translate(${n.y0}, ${n.x0})`,
-  // });
-
-  const springs = useSpring({
-    transform: n.children
-      ? `translate(${n.y}, ${n.x})`
-      : `translate(${n.y0}, ${n.x0})`,
-  });
-
-  // const [transitions, api] = useTransition(data, () => ({
-  //   from: { opacity: 0 },
-  //   enter: { opacity: 1 },
-  //   leave: { opacity: 1 },
-  // }))
-
+const Leaf = ({ node, update }) => {
   return (
-    <animated.g
-      style={springs}
-      className="node-container"
-      transform={`translate(${n.y}, ${n.x})`}
-    >
+    <g className="node-container">
       <foreignObject
         x={-memberBox.width / 2}
         y={-memberBox.height / 2}
@@ -169,9 +182,10 @@ const Leaf = ({ n, update }) => {
       >
         <div className="card">
           <div className="card-body">
-            <h5 className="card-title">{n.data.name}</h5>
+            <h5 className="card-title">{node?.data.name}</h5>
             <button
               onClick={() => {
+                const n = { ...node };
                 if (n.children) {
                   n._children = [...n.children];
                   n.children = null;
@@ -188,6 +202,6 @@ const Leaf = ({ n, update }) => {
           </div>
         </div>
       </foreignObject>
-    </animated.g>
+    </g>
   );
 };
