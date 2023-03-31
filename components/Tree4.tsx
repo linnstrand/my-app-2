@@ -13,6 +13,20 @@ const width = 1200;
 const startWidth = 940;
 const startHeight = 940;
 
+interface IdHierarchyNode<T> extends d3.HierarchyNode<T> {
+  id?: string;
+  _children?: any[];
+  x0: number;
+  y0: number;
+}
+
+interface IdHierarchyPointNode<T> extends d3.HierarchyPointNode<T> {
+  id?: string;
+  _children?: any[];
+  x0: number;
+  y0: number;
+}
+
 const dx = 800;
 const dy = width / 6;
 const margin = { top: 10, right: 120, bottom: 10, left: 40 };
@@ -24,15 +38,18 @@ const memberBox = {
 };
 
 export const Tree4 = () => {
-  const [nodes, setNodes] = useState([]);
-  const [links, setLinks] = useState([]);
-  const [root, setRoot] = useState(() => {
-    const r = d3.hierarchy(testdata, (person) => person.nodes);
+  const [nodes, setNodes] = useState<any[] | undefined>();
+  const [links, setLinks] = useState<any[] | undefined>();
+  const [root, setRoot] = useState<IdHierarchyNode<any>>(() => {
+    const r = d3.hierarchy(
+      testdata,
+      (person) => person.nodes
+    ) as IdHierarchyNode<any>;
     r.x0 = dy / 20;
     r.y0 = 0;
 
     r.descendants().forEach((node, i) => {
-      node.id = i;
+      node.id = i.toString();
       node._children = node.children;
       if (node.depth && node.data.level > 3) {
         node.children = null;
@@ -46,7 +63,7 @@ export const Tree4 = () => {
   );
 
   const tree = d3
-    .tree()
+    .tree<any>()
     .nodeSize([
       memberBox.height + memberBox.marginHeight,
       memberBox.width + memberBox.marginWidth,
@@ -56,13 +73,13 @@ export const Tree4 = () => {
   const update = (source) => {
     setNodes(root.descendants().reverse());
     setLinks(root.links());
-    tree(root);
+    const pointNode = tree(root) as IdHierarchyPointNode<any>;
 
     let x0 = width;
     let x1 = -width;
     let y0 = startHeight;
     let y1 = -startHeight;
-    root.each((d) => {
+    pointNode.each((d) => {
       if (d.x > x1) x1 = d.x;
       if (d.x < x0) x0 = d.x;
       if (d.y > y1) y1 = d.y;
@@ -85,14 +102,14 @@ export const Tree4 = () => {
     );
 
     // Stash the old positions for transition.
-    root.eachBefore((d) => {
+    pointNode.eachBefore((d) => {
       d.x0 = d.x;
       d.y0 = d.y;
     });
   };
 
   useEffect(() => {
-    if (nodes.length > 0) {
+    if (nodes) {
       return;
     }
     update(root);
@@ -109,18 +126,18 @@ export const Tree4 = () => {
             viewBox={view}
           >
             <g className="lines">
-              {links &&
-                links.map((n) => {
-                  const l = d3
-                    .link<unknown, d3.HierarchyPointNode<any>>(d3.curveStep)
-                    .x((d) => d.y)
-                    .y((d) => d.x)(n);
-                  return <path key={l} d={l} />;
-                })}
+              {links?.map((n) => {
+                const l = d3
+                  .link<unknown, d3.HierarchyPointNode<any>>(d3.curveStep)
+                  .x((d) => d.y)
+                  .y((d) => d.x)(n);
+                return <path key={l} d={l} />;
+              })}
             </g>
             <g className="nodes">
-              {nodes &&
-                nodes.map((n) => <Leaf key={n.id} n={n} update={update} />)}
+              {nodes?.map((n) => (
+                <Leaf key={n.id} n={n} update={update} />
+              ))}
             </g>
           </svg>
         </div>
