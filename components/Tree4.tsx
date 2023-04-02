@@ -2,34 +2,18 @@ import * as d3 from 'd3';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import testdata from '../testdata.json';
 import { animated, useSpring, useTransition } from '@react-spring/web';
-
-const width = 1200;
-const startWidth = 940;
-const startHeight = 940;
-
-interface IdHierarchyNode<T> extends d3.HierarchyNode<T> {
-  id?: string;
-  _children?: any[];
-  x0: number;
-  y0: number;
-}
-
-interface IdHierarchyPointNode<T> extends d3.HierarchyPointNode<T> {
-  id?: string;
-  _children?: any[];
-  x0: number;
-  y0: number;
-}
+import {
+  IdHierarchyNode,
+  memberBox,
+  startWidth,
+  startHeight,
+  IdHierarchyPointNode,
+  width,
+  margin,
+} from './util';
 
 const dx = 800;
 const dy = width / 6;
-const margin = { top: 10, right: 120, bottom: 10, left: 40 };
-const memberBox = {
-  width: 160,
-  height: 65,
-  marginHeight: 180,
-  marginWidth: 50,
-};
 
 export const Tree4 = () => {
   const [nodes, setNodes] = useState<any[] | undefined>();
@@ -66,7 +50,7 @@ export const Tree4 = () => {
     ])
     .separation(() => 0.5);
 
-  const update = (source) => {
+  const update = () => {
     tree(root) as IdHierarchyPointNode<any>;
     setNodes(root.descendants());
     setLinks(root.links());
@@ -108,7 +92,7 @@ export const Tree4 = () => {
       d.x0 = d.x;
       d.y0 = d.y;
     });
-    update(root);
+    update();
   }, []);
 
   return (

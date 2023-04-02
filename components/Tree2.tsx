@@ -1,33 +1,15 @@
 import * as d3 from 'd3';
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import testdata from '../testdata.json';
+import {
+  memberBox,
+  IdHierarchyPointNode,
+  startHeight,
+  startWidth,
+  margin,
+  width,
+} from './util';
 
-const width = 1200;
-const startWidth = 940;
-const startHeight = 940;
-interface IdHierarchyNode<T> extends d3.HierarchyNode<T> {
-  id?: string;
-  _children?: any[];
-  x0: number;
-  y0: number;
-}
-
-interface IdHierarchyPointNode<T> extends d3.HierarchyPointNode<T> {
-  id?: string;
-  _children?: any[];
-  x0: number;
-  y0: number;
-}
-
-const dx = 800;
-const dy = width / 6;
-const margin = { top: 10, right: 120, bottom: 10, left: 40 };
-const memberBox = {
-  width: 160,
-  height: 65,
-  marginHeight: 180,
-  marginWidth: 50,
-};
 export const Tree2 = () => {
   const svgRef = useRef<SVGSVGElement>(null);
   const nodesRef = useRef<SVGSVGElement>(null);
@@ -40,7 +22,10 @@ export const Tree2 = () => {
       memberBox.width + memberBox.marginWidth,
     ])
     .separation(() => 0.5);
-  const root = tree(d3.hierarchy(testdata, (person) => person.nodes));
+  const root = d3.hierarchy(
+    testdata,
+    (person) => person.nodes
+  ) as IdHierarchyPointNode<any>;
 
   root.descendants().forEach((node, i) => {
     node._children = node.children;
@@ -150,7 +135,9 @@ export const Tree2 = () => {
         preserveAspectRatio="xMidYMid meet"
         width={`${startWidth}px`}
         height={`${startHeight}px`}
-        viewBox={`${-margin.left} ${-margin.top} ${width} ${dx}`}
+        viewBox={`${-margin.left - memberBox.width / 2} ${
+          -memberBox.height - margin.top
+        } ${startWidth} ${startHeight}`}
       >
         <g className="lines" ref={linesRef}></g>
         <g className="nodes" ref={nodesRef}></g>
