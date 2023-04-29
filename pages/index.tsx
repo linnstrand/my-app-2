@@ -4,6 +4,7 @@ import styles from '@/styles/Home.module.css';
 import { Tree } from '@/components/Tree';
 import { Tree4 } from '@/components/Tree4';
 import { Tree2 } from '@/components/Tree2';
+import { CreateTree } from '@/components/CreateTree';
 const inter = Inter({ subsets: ['latin'] });
 
 export default function Home() {
@@ -16,9 +17,7 @@ export default function Home() {
         <link rel="icon" href="/favicon.ico" />
       </Head>
       <main className={styles.main}>
-        <Tree />
-        <Tree2 />
-        <Tree4 />
+        <CreateTree data={[]} />
       </main>
     </>
   );
